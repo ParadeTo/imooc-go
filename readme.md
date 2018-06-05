@@ -901,6 +901,836 @@ func main() {
 }
 ```
 
+# Test
+Tabel drive test
+
+```go
+tests := []struct {
+    a, b, c int32
+}{
+    {1, 2, 3},
+    {0, 2, 2},
+}
+
+for _, test := range tests {
+    if actual := add(test.a, test.b); actual != test.c {
+        ...
+    }
+}
+```
+
+Benchmark:
+
+```go
+func BenchmarkSubStr(b *testing.B) {
+	s := "黑化肥挥发发灰会花飞灰化肥发发"
+
+	for i := 0; i < 13; i++ {
+		s = s + s
+	}
+
+	ans := 7
+
+	b.Logf("len(s) = %d", len(s))
+
+	for i := 0; i < b.N; i++ {
+		_, actual := longestSubStr(s)
+		if actual != ans {
+			b.Errorf("got %d for input %s; " +
+				"expected %d",
+					actual, s, ans)
+		}
+	}
+}
+```
 
 
+cpuprofile
 
+```go
+go test -bench . -cpuprofile cpu.out
+go tool pprof cpu.out
+(pprof) web
+```
+
+## http server test
+
+```go
+package main
+
+import (
+	"testing"
+	"net/http/httptest"
+	"net/http"
+	"io/ioutil"
+	"strings"
+	"os"
+	"errors"
+	"fmt"
+)
+
+func errPanic(writer http.ResponseWriter, request *http.Request) error {
+	panic(122)
+}
+
+type testingUserError string
+
+func (e testingUserError) Error() string {
+	return e.Message()
+}
+
+func (e testingUserError) Message() string {
+	return string(e)
+}
+
+func errUserError(writer http.ResponseWriter,
+	request *http.Request) error {
+	return testingUserError("user error")
+}
+
+func errNoPermission(writer http.ResponseWriter,
+	request *http.Request) error {
+	return os.ErrPermission
+}
+
+func errUnknown(writer http.ResponseWriter,
+	request *http.Request) error {
+	return errors.New("unknown error")
+}
+
+func errNotFound(writer http.ResponseWriter,
+	request *http.Request) error {
+	return os.ErrNotExist
+}
+
+func noError(writer http.ResponseWriter,
+	request *http.Request) error {
+	fmt.Fprintln(writer, "no error")
+	return nil
+}
+
+var tests = []struct {
+	h appHandler
+	code int
+	message string
+}{
+	{errPanic, 500, "Internal Server Error"},
+	{errUserError, 400, "user error"},
+	{errNoPermission, 403, "Forbidden"},
+	{errNotFound, 404, "Not Found"},
+	{errUnknown, 500, "Internal Server Error"},
+	{noError, 200, "no error"},
+}
+
+func TestErrWrapper (t *testing.T) {
+	for _, tt := range tests {
+		f := errWrapper(tt.h)
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(
+			http.MethodGet,
+			"http://www.baidu.com", nil)
+		f(response, request)
+
+		verifyResponse(response.Result(), tt.code, tt.message, t)
+	}
+}
+
+// a real server
+func TestErrWrapperInServer(t *testing.T) {
+	for _, tt := range tests {
+		f := errWrapper(tt.h)
+		server := httptest.NewServer(http.HandlerFunc(f))
+		response, _ := http.Get(server.URL)
+		verifyResponse(response, tt.code, tt.message, t)
+	}
+}
+
+func verifyResponse(response *http.Response,
+	expectedCode int, expectedMsg string, t *testing.T) {
+	b, _ := ioutil.ReadAll(response.Body)
+	body := strings.Trim(string(b), "\n")
+	if response.StatusCode != expectedCode ||
+		body != expectedMsg {
+		t.Errorf("expect (%d, %s); " +
+			"got (%d, %s)", expectedCode, expectedMsg, response.StatusCode, body)
+	}
+}
+```
+
+# doc
+'''
+godoc -http :6060
+'''
+
+example:
+
+```go
+package queue
+
+import "fmt"
+
+func ExampleQueue_Pop() {
+	q := Queue{1}
+	q.Push(1)
+	q.Push(2)
+	fmt.Println(q.Pop())
+	fmt.Println(q.Pop())
+	fmt.Println(q.IsEmpty())
+
+	// Output:
+	// 1
+	// 1
+	// false
+}
+```
+
+## Test Summary
+* table drive
+* coverage
+* profile
+* http testing
+* doc and example
+
+# goroutine
+## coroutine
+* lightweight
+* non-preemptive multi-task processing, return control by itself
+* multi-task on compiler/analyser/virtual-machine level, not on OS
+
+e.g. The goroutine cannot return the control, so the process is in infinite loop
+
+```go
+package main
+
+import (
+	"time"
+	"fmt"
+)
+
+func main() {
+	var a [10]int
+	for i := 0; i < 10; i++ {
+		go func(i int) {
+			for {
+				a[i]++
+			}
+		}(i)
+	}
+	time.Sleep(time.Second * 5)
+	fmt.Println(a)
+}
+```
+
+can use `runtime.Gosched()` to return the control
+
+
+**`go run --race`**
+
+Monitor race.
+
+
+## switch point
+* I/O, select
+* channel
+* waiting lock
+* func calling
+* runtime.Gosched()
+
+# channel
+## usage
+```go
+package main
+
+import (
+	"time"
+	"fmt"
+)
+
+func worker (id int, c chan int) {
+	//for {
+	//	n, ok := <-c
+	//	if !ok {
+	//		break
+	//	}
+	//	fmt.Printf("Worker %d received %c\n", id, n)
+	//}
+	// or
+	for n := range c {
+		fmt.Printf("Worker %d received %c\n", id, n)
+	}
+}
+
+func createWorker(id int) chan<- int {
+	c := make(chan int)
+	go worker(id, c)
+	return c
+}
+
+func chanDemo () {
+	var channels [10]chan<- int
+	for i := 0; i < 10; i++ {
+		channels[i] = createWorker(i)
+	}
+
+	for i := 0; i < 10; i++ {
+		channels[i] <- 'a' + i
+	}
+}
+
+func bufferedChannel () {
+	c := make(chan int, 3)
+	go worker(0, c)
+	c <- 'a'
+	c <- 'b'
+	c <- 'c'
+	c <- 'd'
+}
+
+// if closed, can still receive data, but the value is 0, can use it to
+// decide if the channel is closed.
+// if not closed, it will block
+func channelClose () {
+	c := make(chan int, 3)
+	go worker(0, c)
+	c <- 'a'
+	c <- 'b'
+	c <- 'c'
+	c <- 'd'
+	close(c)
+}
+
+func main () {
+	fmt.Println("Channel as first-class citizen.")
+	//chanDemo()
+	fmt.Println("Buffered channel")
+	//bufferedChannel()
+	fmt.Println("Channel close and range")
+	channelClose()
+	time.Sleep(time.Second)
+}
+```
+
+**Communication Sequential Process**
+
+**Don't communicate by sharing memory, share memory by communication.**
+
+## wait goroutine done
+### use channel
+The code above use sleep, we want to remove it, so we change the code to:
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+func doWork (id int, c chan int, done chan bool) {
+	for n := range c {
+		fmt.Printf("Worker %d received %c\n", id, n)
+		done <- true
+	}
+}
+
+type worker struct {
+	in chan int
+	done chan bool
+}
+
+func createWorker(id int) worker {
+	w := worker{in: make(chan int), done: make(chan bool)}
+	go doWork(id, w.in, w.done)
+	return w
+}
+
+func chanDemo () {
+	var workers [10]worker
+	for i := 0; i < 10; i++ {
+		workers[i] = createWorker(i)
+	}
+
+	for i, worker := range workers {
+		worker.in <- 'a' + i
+		<-worker.done
+	}
+
+	for i, worker := range workers {
+		worker.in <- 'A' + i
+		<-worker.done
+	}
+}
+
+func main () {
+	fmt.Println("Channel as first-class citizen.")
+	chanDemo()
+}
+```
+
+It add a done channel to every work, and when work done, it will send signal to our main goroutine.
+But it will result in the problem:
+
+```
+Channel as first-class citizen.
+Worker 0 received a
+Worker 1 received b
+Worker 2 received c
+Worker 3 received d
+Worker 4 received e
+Worker 5 received f
+Worker 6 received g
+Worker 7 received h
+Worker 8 received i
+Worker 9 received j
+Worker 0 received A
+Worker 1 received B
+Worker 2 received C
+Worker 3 received D
+Worker 4 received E
+Worker 5 received F
+Worker 6 received G
+Worker 7 received H
+Worker 8 received I
+Worker 9 received J
+```
+
+The worker now work in sequence! We can change our code to:
+
+```go
+	for i, worker := range workers {
+		worker.in <- 'a' + i
+	}
+
+    // block here
+	for i, worker := range workers {
+		worker.in <- 'A' + i
+	}
+
+	// wait for all of them
+	for _, worker := range workers {
+		<-worker.done
+	}
+```
+
+But it will block in that! So we need to do this:
+
+```go
+...
+go func() { done <- true }()
+...
+```
+
+
+### use WaitGroup
+```
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func doWork (id int, c chan int, wg *sync.WaitGroup) {
+	for n := range c {
+		fmt.Printf("Worker %d received %c\n", id, n)
+		wg.Done()
+	}
+}
+
+type worker struct {
+	in chan int
+	wg *sync.WaitGroup
+}
+
+func createWorker(id int, wg *sync.WaitGroup) worker {
+	w := worker{in: make(chan int), wg: wg}
+	go doWork(id, w.in, wg)
+	return w
+}
+
+func chanDemo () {
+	var workers [10]worker
+	var wg sync.WaitGroup
+	wg.Add(20)
+
+	for i := 0; i < 10; i++ {
+		workers[i] = createWorker(i, &wg)
+	}
+
+	for i, worker := range workers {
+		worker.in <- 'a' + i
+	}
+
+	for i, worker := range workers {
+		worker.in <- 'A' + i
+	}
+
+	// wait for all of them
+	wg.Wait()
+}
+
+func main () {
+	fmt.Println("Channel as first-class citizen.")
+	chanDemo()
+}
+```
+
+More, we can change our code to functional programming:
+
+```go
+func doWork (id int, w worker) {
+	for n := range w.in {
+		fmt.Printf("Worker %d received %c\n", id, n)
+		w.done()
+	}
+}
+
+type worker struct {
+	in chan int
+	done func()
+}
+
+func createWorker(id int, wg *sync.WaitGroup) worker {
+	w := worker{in: make(chan int), done: func() {
+		wg.Done()
+	}}
+	go doWork(id, w)
+	return w
+}
+...
+```
+
+
+## Use channel to traverse tree
+```go
+func (node *TreeNode) TraverseWithChannel() chan *TreeNode {
+	out := make(chan *TreeNode)
+	go func() {
+		node.TraverseFunc(func(node *TreeNode) {
+			out <- node // like yield in python
+		})
+		close(out)
+	}()
+	return out
+}
+```
+
+## select
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+	"math/rand"
+)
+
+func generator() chan int {
+	out := make(chan int)
+	go func() {
+		i := 0
+		for {
+			time.Sleep(time.Duration(rand.Intn(1500)) * time.Millisecond)
+			out <- i
+			i++
+		}
+	}()
+	return out
+}
+
+func worker (id int, c chan int) {
+	for n := range c {
+		fmt.Printf("Worker %d received %d\n", id, n)
+	}
+}
+
+func createWorker(id int) chan<- int {
+	c := make(chan int)
+	go worker(id, c)
+	return c
+}
+
+func main() {
+	var c1, c2 = generator(), generator()
+	var worker = createWorker(0)
+
+	n := 0
+	hasValue := false
+	for {
+		var activeWorker chan<- int
+		if hasValue {
+			activeWorker = worker
+		}
+		select {
+		case n = <-c1:
+			hasValue = true
+		case n = <-c2:
+			hasValue = true
+		case activeWorker <- n: // nil chan will not be selected
+			hasValue = false
+		}
+	}
+}
+
+```
+
+There is a problem, if worker's process is too long, for example:
+
+```go
+...
+		time.Sleep(time.Second * 5)
+		fmt.Printf("Worker %d received %d\n", id, n)
+...
+```
+
+We will lose data:
+
+```go
+Worker 0 received 0
+Worker 0 received 7
+```
+
+So we need to cache the data produced:
+```go
+	var values []int
+	n := 0
+	for {
+		var activeWorker chan<- int
+		var activeValue int
+		if len(values) > 0 {
+			activeWorker = worker
+			activeValue = values[0]
+		}
+		select {
+		case n = <-c1:
+			values = append(values, n)
+		case n = <-c2:
+			values = append(values, n)
+		case activeWorker <- activeValue: // nil chan will not be selected
+			values = values[1:]
+		}
+	}
+```
+
+We can use `time.After` and `time.Tick` to show more info:
+
+```go
+var values []int
+	tm := time.After(10 * time.Second)
+	tick := time.Tick(time.Second)
+	n := 0
+	for {
+		var activeWorker chan<- int
+		var activeValue int
+		if len(values) > 0 {
+			activeWorker = worker
+			activeValue = values[0]
+		}
+		select {
+		case n = <-c1:
+			values = append(values, n)
+		case n = <-c2:
+			values = append(values, n)
+		case activeWorker <- activeValue: // nil chan   not be selected
+			values = values[1:]
+		case <-time.After(800 * time.Millisecond):
+			fmt.Println("Timeout")
+		case <-tick:
+			fmt.Println("Queue:")
+			fmt.Println(values)
+		case <-tm:
+			fmt.Println("Bye")
+			return
+		}
+	}
+```
+
+## Ordinary Synchronous
+* WaitGroup
+* Mutex
+* Cond
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+	"sync"
+)
+
+type atomicInt struct {
+	value int
+	lock sync.Mutex
+}
+
+func (a *atomicInt) increment () {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.value++
+}
+
+func (a *atomicInt) get() int {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	return int(a.value)
+}
+
+func main() {
+	var a atomicInt
+	a.increment()
+	go func() {
+		a.increment()
+	}()
+	time.Sleep(time.Millisecond)
+	fmt.Println(a.get())
+}
+```
+
+If you want a zone to be locked?
+
+```go
+	func() {
+		a.lock.Lock()
+		defer a.lock.Unlock()
+		a.value++
+	}()
+```
+
+# Standard Lib
+## http
+```go
+request, err := http.NewRequest(http.MethodGet, "http://www.imooc.com", nil)
+	request.Header.Add("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1")
+
+	client := http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			fmt.Println("Redirect:", req)
+			return nil
+		},
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	s, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s\n", s)
+```
+
+## pprof
+`net/http/pprof`
+`http://xxxxx/debug/pprof` to monitor system
+
+
+# Other Standard Lib
+`godoc -http :8888`
+
+
+# Breadth First Search
+My version：
+
+```go
+package main
+
+import (
+	"./queue"
+	. "./point"
+	"fmt"
+)
+
+// if the point can be add to stack
+func ifAddPoint(x, y int, seen [][]bool, m [][]int, col, row int) bool {
+	if x >= row || x < 0 || y >= col || y < 0 {
+		return false
+	}
+	if m[x][y] == 1 || seen[x][y] {
+		return false
+	}
+	return true
+}
+
+func neighPoints(x, y int) []Point {
+	neighPoints := []Point{
+		{X: x, Y: y - 1}, // up
+		{X: x + 1, Y: y }, // right
+		{X: x, Y: y + 1}, // bottom
+		{X: x - 1, Y: y}, // left
+	}
+
+	return neighPoints
+}
+
+func bfs(m [][]int, col int, row int) [][]Point {
+	// record the parent point of current point
+	parentPointMap := [][]Point{}
+	seen := [][]bool{}
+	q := queue.Queue{}
+
+	parentPointMap = make([][]Point, row)
+	seen = make([][]bool, row)
+	for i := 0; i < row; i++ {
+		parentPointMap[i] = make([]Point, col)
+		seen[i] = make([]bool, col)
+	}
+
+	q.Push(Point{0, 0})
+	seen[0][0] = true
+
+	for {
+		item := q.Pop()
+		if p, ok := item.(Point); ok {
+			x, y := p.X, p.Y
+
+			if x == row-1 && y == col-1 {
+				break
+      }
+
+			for _, neighPoints := range neighPoints(x, y) {
+				if (ifAddPoint(neighPoints.X, neighPoints.Y, seen, m, col, row)) {
+					q.Push(neighPoints)
+					nx, ny := neighPoints.X, neighPoints.Y
+					q.Push(Point{X: nx, Y: ny})
+					seen[nx][ny] = true
+					parentPointMap[nx][ny] = Point{x, y}
+				}
+			}
+		} else {
+			break
+		}
+	}
+
+	return parentPointMap
+}
+
+
+func main() {
+	m := [][]int{
+		{0, 1, 0, 0, 0},
+		{0, 0, 0, 1, 0},
+		{0, 1, 0, 1, 0},
+		{1, 1, 1, 0, 0},
+		{0, 1, 0, 0, 1},
+		{0, 1, 0, 0, 0},
+	}
+	col := 5
+	row := 6
+	res := bfs(m, col, row)
+
+	x, y := 5, 4
+	for {
+		fmt.Printf("(%d, %d)", x, y)
+		if x == 0 && y == 0 {
+			break
+		}
+		fmt.Print("<-")
+		point := res[x][y]
+		x, y = point.X, point.Y
+	}
+}
+```

@@ -2,7 +2,6 @@ package main
 
 import (
 	. "./tree"
-	"./queue"
 	"fmt"
 )
 
@@ -21,12 +20,13 @@ func (myNode *MyTreeNode) postOrder () {
 
 func main() {
 
-	//var root TreeNode
-	//
-	//root = TreeNode{Value:3}
-	//root.Left = &TreeNode{}
-	//root.Right = &TreeNode{5, nil, nil}
-	//root.Right.Left = new(TreeNode)
+	var root TreeNode
+
+	root = TreeNode{Value:3}
+	root.Left = &TreeNode{}
+	root.Right = &TreeNode{5, nil, nil}
+	root.Right.Left = new(TreeNode)
+
 	//
 	//t := &MyTreeNode{&root}
 	//t.postOrder()
@@ -37,13 +37,25 @@ func main() {
 	////n.left.print()
 	//root.Traverse()
 
-	q := queue.Queue{1}
-	q.Push("123")
-	fmt.Println(q.Pop())
-	fmt.Println(q.Pop())
-	fmt.Println(q.IsEmpty())
+	//q := queue.Queue{1}
+	//q.Push("123")
+	//fmt.Println(q.Pop())
+	//fmt.Println(q.Pop())
+	//fmt.Println(q.IsEmpty())
 
 	//fmt.Println(q.Pop())
 
 	//fmt.Println(q.Pop())
+
+	// use channel to traverse
+	c := root.TraverseWithChannel()
+	maxNode := 0
+	for node := range c {
+		if node.Value > maxNode {
+			maxNode = node.Value
+		}
+	}
+
+	a := make([]int, 5)
+	fmt.Print(a[4])
 }

@@ -24,16 +24,27 @@ func (node *TreeNode) SetValue(value int) {
 }
 
 func (node *TreeNode) Traverse() {
-	node.TranverseFunc(func(node *TreeNode) {
+	node.TraverseFunc(func(node *TreeNode) {
 		node.Print()
 	})
 }
 
-func (node *TreeNode) TranverseFunc(f func(node *TreeNode)) {
+func (node *TreeNode) TraverseFunc(f func(node *TreeNode)) {
 	if node == nil {
 		return
 	}
 	node.Left.Traverse()
 	f(node)
 	node.Right.Traverse()
+}
+
+func (node *TreeNode) TraverseWithChannel() chan *TreeNode {
+	out := make(chan *TreeNode)
+	go func() {
+		node.TraverseFunc(func(node *TreeNode) {
+			out <- node
+		})
+		close(out)
+	}()
+	return out
 }
