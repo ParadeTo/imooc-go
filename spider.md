@@ -155,3 +155,6 @@ func main() {
 
 
 # 并发版爬虫
+![](img/4.png)
+
+![](img/5.png)
