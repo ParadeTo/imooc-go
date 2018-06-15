@@ -32,9 +32,10 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 			log.Printf("Got item %v", item)
 		}
 
-		for _, r := range result.Requests {
-			e.Scheduler.Submit(r)
-		}
+		// for _, r := range result.Requests {
+		// 	e.Scheduler.Submit(r) // 产生了很多 requests, 但是只能往里面放一个，所以这里不能往下继续运行
+		// }
+		e.Scheduler.Submit(result.Requests[0])
 	}
 }
 
@@ -45,6 +46,12 @@ func createWorker(in chan Request, out chan ParseResult) {
 			request := <-in
 			result, err := worker(request)
 			if err != nil {
+				out <- ParseResult{Requests: []Request{
+					Request{
+						Url:        "http://www.baidu.com",
+						ParserFunc: NilParser,
+					},
+				}}
 				continue
 			}
 			// 循环等待
