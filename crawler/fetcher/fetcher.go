@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
@@ -23,8 +24,11 @@ func determineEncoding(r *bufio.Reader) encoding.Encoding {
 	return e
 }
 
+var rateLimiter = time.Tick(100 * time.Millisecond)
+
 // Fetch fetch body from url
 func Fetch(url string) ([]byte, error) {
+	<-rateLimiter
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

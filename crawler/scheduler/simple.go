@@ -10,7 +10,10 @@ type SimpleScheduler struct {
 
 func (s *SimpleScheduler) Submit(r engine.Request) {
 	// send request down to worker chan
-	s.workerChan <- r
+	// solve loop waiting
+	go func() {
+		s.workerChan <- r
+	}()
 }
 
 func (s *SimpleScheduler) ConfigureMasterWorkerChan(c chan engine.Request) {
