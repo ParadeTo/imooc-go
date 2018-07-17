@@ -13,7 +13,7 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	e.Scheduler.Run()
 
 	for i := 0; i < e.WorkerCount; i++ {
-		createWorker(out, e.Scheduler)
+		createWorker(e.Scheduler.WorkerChan(), out, e.Scheduler)
 	}
 
 	for _, r := range seeds {
@@ -34,19 +34,17 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	}
 }
 
-func createWorker(out chan ParseResult, s Scheduler) {
-	in := make(chan Request)
+func createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
 	go func() {
 		for {
 			// tell scheduler i am ready
-			s.WorkerReady(in)
+			ready.WorkerReady(in)
 
 			request := <-in
 			result, err := worker(request)
 			if err != nil {
 				continue
 			}
-			// 循环等待
 			out <- result
 		}
 	}()

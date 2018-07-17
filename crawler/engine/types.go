@@ -11,10 +11,14 @@ type ParseResult struct {
 }
 
 type Scheduler interface {
+	ReadyNotifier
 	Submit(Request)
-	ConfigureMasterWorkerChan(chan Request)
-	WorkerReady(chan Request)
+	WorkerChan() chan Request
 	Run()
+}
+
+type ReadyNotifier interface {
+	WorkerReady(chan Request)
 }
 
 func NilParser([]byte) ParseResult {
