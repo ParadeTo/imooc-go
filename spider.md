@@ -164,3 +164,10 @@ func main() {
 ![](img/6.png)
 
 ![](img/7.png)
+
+
+# 去重
+* hash
+* md5 + hash
+* bloom filter
+* redis

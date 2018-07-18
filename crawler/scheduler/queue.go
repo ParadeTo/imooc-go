@@ -35,10 +35,13 @@ func (s *QueueScheduler) Run() {
 			}
 
 			select {
+			// 有 Request 来，就存到 Request 队列中
 			case r := <-s.requestChan:
 				requestQ = append(requestQ, r)
+			// 有准备好的 Worker 来，就存到 Worker 队列中
 			case w := <-s.workerChan:
 				workerQ = append(workerQ, w)
+			// 要么就将 Request 发送给 Worker 去工作
 			case activeWorker <- activeRequest:
 				requestQ = requestQ[1:]
 				workerQ = workerQ[1:]

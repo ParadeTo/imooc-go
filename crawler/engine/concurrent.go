@@ -1,6 +1,10 @@
 package engine
 
-import "log"
+import (
+	"log"
+
+	"../model"
+)
 
 type ConcurrentEngine struct {
 	Scheduler   Scheduler
@@ -17,19 +21,29 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	}
 
 	for _, r := range seeds {
+		// url dedup
+		if isDuplicate(r.Url) {
+			continue
+		}
 		e.Scheduler.Submit(r)
 	}
 
-	itemCount := 0
+	profileCount := 0
 	for {
 		result := <-out
 		for _, item := range result.Items {
-			log.Printf("Got item #%d: %v", itemCount, item)
-			itemCount++
+			if profile, ok := item.(model.Profile); ok {
+				log.Printf("Got item #%d: %v", profileCount, profile)
+				profileCount++
+			}
 		}
 
 		for _, r := range result.Requests {
-			e.Scheduler.Submit(r) // 产生了很多 requests, 但是只能往里面放一个，所以这里不能往下继续运行
+			// url dedup
+			if isDuplicate(r.Url) {
+				continue
+			}
+			e.Scheduler.Submit(r)
 		}
 	}
 }
@@ -48,4 +62,15 @@ func createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
 			out <- result
 		}
 	}()
+}
+
+var visitedUrls = make(map[string]bool)
+
+func isDuplicate(url string) bool {
+	if visitedUrls[url] {
+		return true
+	}
+
+	visitedUrls[url] = true
+	return false
 }
