@@ -180,3 +180,15 @@ func main() {
 
 * 为每个 Item 创建 goroutine，提交给 ItemSaver，类似 SimpleScheduler 的做法：
 ![](img/8.png)
+
+
+# elastic
+```
+docker run -d -p 9200:9200 elasticsearch
+```
+
+/index/type/id
+
+* index: database
+* type: table
+* id: id
