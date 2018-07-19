@@ -171,3 +171,12 @@ func main() {
 * md5 + hash
 * bloom filter
 * redis
+
+# 如何存储 Items
+* 抽象出 Task 的概念
+  * FetchTask
+  * PersistTask
+  * 但是在该项目中显得太重了
+
+* 为每个 Item 创建 goroutine，提交给 ItemSaver，类似 SimpleScheduler 的做法：
+![](img/8.png)
