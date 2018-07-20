@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"../../model"
+	"../../engine"
 )
 
 func TestParseProfile(t *testing.T) {
@@ -14,31 +15,36 @@ func TestParseProfile(t *testing.T) {
 		panic(err)
 	}
 
-	result := ParseProfile(contents, "好人")
+	result := ParseProfile(contents,  "http://album.zhenai.com/u/106518746", "好人")
 
 	if len(result.Items) != 1 {
 		t.Errorf("Result should contain 1 elements, but was %v", result.Items)
 	}
 
-	profile := result.Items[0].(model.Profile)
+	actual := result.Items[0]
 
-	expected := model.Profile{
-		Name:       "好人",
-		Gender:     "男",
-		Age:        36,
-		Height:     178,
-		Weight:     84,
-		Income:     "3000元以下",
-		Marriage:   "未婚",
-		Education:  "高中及以下",
-		Occupation: "--",
-		Hokou:      "广东深圳",
-		Xinzuo:     "--",
-		House:      "已购房",
-		Car:        "未购车",
+	expected := engine.Item{
+		Url: "http://album.zhenai.com/u/106518746",
+		Type: "zhenai",
+		Id: "106518746",
+		Payload: model.Profile{
+			Name:       "好人",
+			Gender:     "男",
+			Age:        36,
+			Height:     178,
+			Weight:     84,
+			Income:     "3000元以下",
+			Marriage:   "未婚",
+			Education:  "高中及以下",
+			Occupation: "--",
+			Hokou:      "广东深圳",
+			Xinzuo:     "--",
+			House:      "已购房",
+			Car:        "未购车",
+		},
 	}
 
-	if profile != expected {
-		t.Errorf("expected %v, but war %v", expected, profile)
+	if actual != expected {
+		t.Errorf("expected %v, but was %v", expected, actual)
 	}
 }
