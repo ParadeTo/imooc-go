@@ -31,12 +31,6 @@ func TestSave(t *testing.T) {
 		},
 	}
 
-	err := save(expected)
-
-	if err != nil {
-		panic(err)
-	}
-
 	// TODO: Try to start up elastic search here using docker go client
 	client, err := elastic.NewClient(
 		// Must turn off sniff in docker
@@ -46,8 +40,15 @@ func TestSave(t *testing.T) {
 		panic(err)
 	}
 
+	const index = "dating_test"
+	err = save(client, index, expected)
+
+	if err != nil {
+		panic(err)
+	}
+
 	resp, err := client.Get().
-		Index("dating_profile").
+		Index(index).
 		Type(expected.Type).
 		Id(expected.Id).
 		Do(context.Background())
