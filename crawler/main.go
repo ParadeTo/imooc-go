@@ -24,6 +24,7 @@ func main() {
 		Scheduler:   &scheduler.QueueScheduler{},
 		WorkerCount: 100,
 		ItemChan:    itemChan,
+		Deduplicate: engine.NewSimpleDeDuplicate(),
 	}
 	e.Run(engine.Request{
 		Url:        "http://www.zhenai.com/zhenghun/shanghai",

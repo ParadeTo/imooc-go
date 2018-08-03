@@ -26,6 +26,10 @@ type Scheduler interface {
 	Run()
 }
 
+type Deduplicate interface {
+	IsDuplicate(url string)	bool
+}
+
 type ReadyNotifier interface {
 	WorkerReady(chan Request)
 }
