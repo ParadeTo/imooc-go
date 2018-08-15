@@ -193,3 +193,91 @@ docker run -d -p 9200:9200 elasticsearch
 * index: database
 * type: table
 * id: id
+
+# 分布式系统
+* 多个节点
+    * 容错性
+    * 可拓展性
+    * 固有分布性
+* 消息传递
+    * 节点有私有存储
+    * 易于开发
+    * 可拓展
+    * 对比并行运算
+* 完成特定需求
+
+
+## 分布式爬虫架构
+这里去重后面实现改为worker来调用
+
+![](img/9.png)
+
+## 去重问题
+* 单节点能承受的去重数据量有限
+* 无法保存之前去重结果
+
+## 存储问题
+* 技术栈与爬虫部分区别很大
+
+
+## jsonrpc
+
+*rpcdemo*
+```go
+package rpcdemo
+
+import "errors"
+
+// Service.Method
+type DemoService struct {}
+
+type Args struct {
+	A, B int
+}
+
+func (DemoService) Div(args Args, result *float64) error {
+	if args.B == 0 {
+		return errors.New("division by zero")
+	}
+
+	*result = float64(args.A) / float64(args.B)
+	return nil
+}
+```
+
+*main*
+```go
+package main
+
+import (
+	"net/rpc"
+	"./rpcdemo"
+	"net"
+	"log"
+	"net/rpc/jsonrpc"
+)
+
+func main() {
+	rpc.Register(rpcdemo.DemoService{})
+	listener, err := net.Listen("tcp", ":1234")
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Printf("accept error: %v", err)
+		}
+
+		go jsonrpc.ServeConn(conn)
+	}
+}
+```
+
+启动服务，然后 `telnet localhost 1234`, 输入：
+
+```
+{"mehtod":"DemoService.Div","params":[{"A":3,"B":4}],"id":1}
+```
+
