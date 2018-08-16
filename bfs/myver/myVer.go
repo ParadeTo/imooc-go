@@ -57,8 +57,8 @@ func bfs(m [][]int, col int, row int) [][]Point {
 			for _, neighPoints := range neighPoints(x, y) {
 				if ifAddPoint(neighPoints.X, neighPoints.Y, seen, m, col, row) {
 					q.Push(neighPoints)
+
 					nx, ny := neighPoints.X, neighPoints.Y
-					q.Push(Point{X: nx, Y: ny})
 					seen[nx][ny] = true
 					parentPointMap[nx][ny] = Point{x, y}
 				}
