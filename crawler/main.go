@@ -27,7 +27,7 @@ func main() {
 		Deduplicate: engine.NewSimpleDeDuplicate(),
 	}
 	e.Run(engine.Request{
-		Url:        "http://www.zhenai.com/zhenghun/shanghai",
-		ParserFunc: parser.ParseCity,
+		Url:        "http://www.zhenai.com/zhenghun",
+		Parser: engine.NewFuncParser(parser.ParseCityList, "ParseCityList"),
 	})
 }
