@@ -3,10 +3,11 @@ package engine
 import "log"
 
 type ConcurrentEngine struct {
-	Scheduler   Scheduler
-	WorkerCount int
-	ItemChan    chan Item
-	Deduplicate Deduplicate
+	Scheduler      Scheduler
+	WorkerCount    int
+	ItemChan       chan Item
+	RequestProcess Processor
+	Deduplicate    Deduplicate
 }
 
 func (e *ConcurrentEngine) Run(seeds ...Request) {
@@ -15,7 +16,7 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	e.Scheduler.Run()
 
 	for i := 0; i < e.WorkerCount; i++ {
-		createWorker(e.Scheduler.WorkerChan(), out, e.Scheduler)
+		e.createWorker(e.Scheduler.WorkerChan(), out, e.Scheduler)
 	}
 
 	for _, r := range seeds {
@@ -43,14 +44,14 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 	}
 }
 
-func createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
+func (e *ConcurrentEngine) createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
 	go func() {
 		for {
 			// tell scheduler i am ready
 			ready.WorkerReady(in)
 
 			request := <-in
-			result, err := worker(request)
+			result, err := e.RequestProcess(request) // call rpc
 			if err != nil {
 				continue
 			}
@@ -58,4 +59,3 @@ func createWorker(in chan Request, out chan ParseResult, ready ReadyNotifier) {
 		}
 	}()
 }
-

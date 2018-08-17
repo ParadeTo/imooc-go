@@ -7,7 +7,8 @@ import (
 	"../crawler/scheduler"
 	"../crawler/zhenai/parser"
 	"./config"
-	"./persist/client"
+	persisClient "./persist/client"
+	workerClient "./worker/client"
 )
 
 func main() {
@@ -19,18 +20,26 @@ func main() {
 	// })
 
 	// concurrent
-	itemChan, err := client.ItemSaver(fmt.Sprintf(":%d", config.ItemSaverPort))
+	itemChan, err := persisClient.ItemSaver(fmt.Sprintf(":%d", config.ItemSaverPort))
 	if err != nil {
 		panic(err)
 	}
-	e := engine.ConcurrentEngine{
-		Scheduler:   &scheduler.QueueScheduler{},
-		WorkerCount: 100,
-		ItemChan:    itemChan,
-		Deduplicate: engine.NewSimpleDeDuplicate(),
+
+	processor, err := workerClient.CreateProcessor()
+	if err != nil {
+		panic(err)
 	}
+
+	e := engine.ConcurrentEngine{
+		Scheduler:      &scheduler.QueueScheduler{},
+		WorkerCount:    100,
+		ItemChan:       itemChan,
+		RequestProcess: processor,
+		Deduplicate:    engine.NewSimpleDeDuplicate(),
+	}
+
 	e.Run(engine.Request{
-		Url:        "http://www.zhenai.com/zhenghun/shanghai",
-		ParserFunc: parser.ParseCity,
+		Url:    "http://www.zhenai.com/zhenghun/nanyang",
+		Parser: engine.NewFuncParser(parser.ParseCity, "ParseCity"),
 	})
 }

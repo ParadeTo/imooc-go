@@ -2,6 +2,8 @@ package engine
 
 type ParserFunc func(contents []byte, url string) ParseResult
 
+type Processor func (Request) (ParseResult, error)
+
 type Parser interface {
 	Parse(contents []byte, url string) ParseResult
 	Serialize() (name string, args interface{})
