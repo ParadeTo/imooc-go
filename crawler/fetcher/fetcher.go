@@ -29,6 +29,7 @@ var rateLimiter = time.Tick(100 * time.Millisecond)
 // Fetch fetch body from url
 func Fetch(url string) ([]byte, error) {
 	<-rateLimiter
+	log.Printf("Fetching url %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

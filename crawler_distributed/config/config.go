@@ -1,9 +1,6 @@
 package config
 
 const (
-	ItemSaverPort = 1234
-	WorkerPort0   = 9000
-
 	ElasticIndex = "dating_profile"
 
 	ItemSaverRpc = "ItemSaverService.Save"
@@ -14,4 +11,7 @@ const (
 	ParseCityList = "ParseCityList"
 	ParseProfile  = "ParseProfile"
 	NilParser     = "NilParser"
+
+	// Rate limit
+	Qps = 20
 )
