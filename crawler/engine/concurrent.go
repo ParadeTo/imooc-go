@@ -31,7 +31,7 @@ func (e *ConcurrentEngine) Run(seeds ...Request) {
 		result := <-out
 		log.Printf("%+v", result)
 		for _, item := range result.Items {
-			go func() { e.ItemChan <- item }()
+			go func(i Item) { e.ItemChan <- i }(item)
 		}
 
 		for _, r := range result.Requests {
